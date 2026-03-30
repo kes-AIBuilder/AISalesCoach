@@ -1,381 +1,249 @@
-# 레몬헬스케어 AI 영업 코치 (Lemon Sales Coach)
-## Claude Code 개발 가이드
+# CLAUDE.md
+
+> **북극성**: 준비된 사람이 현장에서 고객의 문제를 발견하고, 직접 만들어서 증명한다
+
+이 파일은 **MAKE 프로젝트**에서 Claude Code가 작업할 때 참조하는 운영 원칙입니다.
+새 프로젝트 시작 시 §2 프로젝트 컨텍스트만 채우고 시작하세요.
 
 ---
 
-## 프로젝트 개요
+## 0. MAKE란
 
-영업 담당자(Kes)가 고객과 나누는 대화를 AI가 함께 정리하고, 다음에 무엇을 해야 이길 수 있는지 가이드하는 B2B 영업 관리 도구.
+김언수의 Claude 프로젝트 체계는 7개 카테고리로 구성됩니다:
 
-- 영업은 메모(텍스트 or 음성)만 입력 → AI가 나머지를 정리
-- Win/Loss 결과가 쌓일수록 Win 공식이 정교해짐
-- 어느 단계(발굴~계약)에서든 딜을 시작 가능
-- 음성 업로드 → Whisper STT → Claude 구조화 자동 파이프라인
+| 카테고리 | 정의 |
+|----------|------|
+| **MAKE** | **구현 — BIZ에서 실행을 결정한 프로젝트를 실제로 만드는 공간. 코드 작성, 자동화 구현, 납품 작업 등 손으로 만드는 모든 작업** |
+| BIZ | 독립을 목표로 하는 사업 아이디어의 설계, 전략, 요건 정의. MAKE로 넘어가기 전 단계의 모든 기획 |
+| WORK | 본업 — 레몬헬스케어에서 AI-native한 Sales, Business Development Manager로 의료산업의 니즈와 페인포인트를 분석하여 모바일/디지털 기반 서비스로 해결 |
+| GROW | 독립과 장기 성장을 위한 학습, 기술 습득, 자기계발 |
+| MONEY | 부부의 자산 증식과 재무 관리. 투자 전략, 가계부 분석, 재무 목표 설정 |
+| IDEA | 완성되지 않은 생각, 직관적인 아이디어, 우연히 떠오른 연결고리. 정리하거나 검증하려 하지 말고 일단 쌓아두는 곳 |
+| ? | 특정 카테고리에 속하지 않는 단발성 질문, 일상적인 궁금증, 빠른 검색용 |
 
-**MVP 대상:** Kes 단독 (이메일 로그인 단일 계정)
-**배포 환경:** Vercel Pro (HTTPS)
-
----
-
-## 기술 스택
-
-| 영역 | 기술 |
-|------|------|
-| Frontend | Next.js 14 (App Router) + TypeScript + Tailwind CSS |
-| Database | Supabase (PostgreSQL 15) + Supabase Storage |
-| Auth | Supabase Auth — 이메일/패스워드 |
-| Backend Logic | Supabase Edge Functions (Deno) |
-| AI 텍스트 | Anthropic Claude Sonnet 4.6 (`claude-sonnet-4-6`) |
-| AI 음성→텍스트 | OpenAI Whisper API (`whisper-1`, language: ko) |
-| 문서 생성 | 제안서: 마크다운 렌더링 (MVP) |
-| 배포 | Vercel Pro |
-| 이메일 알림 | Resend API (Phase 2) |
+MAKE 프로젝트의 공통 특징:
+- BIZ에서 기획이 끝난 것 또는 현장에서 즉시 만들어야 할 것이 출발점.
+- AI를 활용한 문제 해결, 사업 구조 고도화, 자동화 등 형태 다양.
+- Claude Code (Cursor, Windsurf 등 AI IDE + CLI 연결)로 구현.
+- DB는 Supabase 등 무료 티어 우선 활용.
+- MVP로 빠르게 증명 → 반복 사용 시 점진적 고도화.
 
 ---
 
-## 환경 변수
+## 1. 작업자 프로필
 
-```bash
-# .env.local
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Edge Function 전용
-
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...              # Whisper STT용
-
-RESEND_API_KEY=re_...              # 이메일 알림 (Phase 2)
-RESEND_FROM_EMAIL=noreply@yourdomain.com
-```
+- **이름**: 김언수 (Kes)
+- **소속**: 레몬헬스케어 중소병원 영업 담당 (독립 준비 중, 6~12개월 타임라인)
+- **주요 스택**: Claude, Cladue Code, Claude Code CLI, Gemini, Gemini CLI Google, Apps Script, Supabase, Claude/GPT API, Google Sheets, Git, Vercel
+- **보유 레퍼런스**:
+  - 넥톤 CRM 자동화 (외부 납품 완료)
+  - 넥톤 Follow up 메일 자동 발송 시스템 (외부 납품 완료)
+  - LHC 영업 대시보드 v23.6 (운영 중)
+  - Kessence AI 뉴스레터 자동화 (운영 중)
+  - KesPolar (운영 중)
 
 ---
 
-## 프로젝트 디렉토리 구조
+## 2. 프로젝트 컨텍스트
+
+> ⚠️ 새 프로젝트 시작 시 이 섹션을 채운 뒤 Claude Code 세션을 시작하세요.
 
 ```
-lemon-sales-coach/
-├── app/
-│   ├── (auth)/
-│   │   └── login/page.tsx
-│   ├── (dashboard)/
-│   │   ├── layout.tsx              # 인증 가드 + 사이드바
-│   │   ├── page.tsx                # 홈 대시보드
-│   │   ├── deals/
-│   │   │   ├── page.tsx            # 딜 목록
-│   │   │   ├── new/page.tsx        # 딜 생성
-│   │   │   └── [id]/
-│   │   │       ├── page.tsx        # 딜 상세 + AI 코치
-│   │   │       └── proposal/page.tsx
-│   │   └── win-formula/page.tsx    # Win 공식 대시보드
-│   └── api/
-│       ├── analyze-memo/route.ts   # 메모 → Claude 구조화
-│       ├── transcribe/route.ts     # 음성 → Whisper → 텍스트
-│       ├── coach/route.ts          # AI 코치 (SSE 스트리밍)
-│       ├── proposal/route.ts       # 제안서 초안 생성
-│       ├── win-patterns/route.ts   # Win 패턴 집계
-│       └── today-actions/route.ts  # 오늘 할 일 (AI 우선순위)
-├── components/
-│   ├── deals/
-│   │   ├── DealCard.tsx
-│   │   ├── DealKanban.tsx
-│   │   ├── DealForm.tsx
-│   │   └── StageProgress.tsx
-│   ├── memo/
-│   │   ├── MemoInput.tsx
-│   │   └── AudioUpload.tsx
-│   ├── ai/
-│   │   ├── CoachPanel.tsx
-│   │   └── ContextSnapshot.tsx
-│   └── ui/
-├── lib/
-│   ├── supabase/
-│   │   ├── client.ts
-│   │   └── server.ts
-│   ├── ai/
-│   │   ├── claude.ts
-│   │   ├── whisper.ts
-│   │   └── prompts.ts             # 모든 프롬프트 상수 관리
-│   └── utils.ts
-├── types/
-│   └── index.ts
-└── supabase/
-    ├── migrations/
-    └── functions/
-        └── process-audio/
-```
+프로젝트명: 레몬헬스케어 AI 영업 코치 (Lemon Sales Coach)
 
----
+발견한 문제 (1~2줄):
+B2B 영업 과정에서 미팅 메모·제안서·견적서·계약서가 도구별로 분절되어
+고객 맥락이 단계마다 소실되고, 팀의 Win 노하우가 개인에게 귀속된다.
 
-## 데이터베이스 스키마
+해결 방향:
+영업이 텍스트 or 음성 메모만 입력하면 AI가 고객 맥락을 구조화하고
+다음에 뭘 해야 이길 수 있는지 가이드한다.
+쌓인 딜 데이터에서 Win 패턴을 자동 추출하여 영업 전략을 고도화한다.
 
-### deals
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | uuid PK | 딜 고유 ID |
-| user_id | uuid FK | 담당자 (auth.users) |
-| hospital_name | text NOT NULL | 병원명 |
-| services | text[] | 서비스 목록 (레몬케어 등) |
-| stage | text | discovery/proposal/negotiation/confirmed/contract |
-| prob_grade | text | 확도 S/A/B/C |
-| entry_point | text | 딜 시작 단계 |
-| hospital_size | text | 의원/병원/종합병원/상급종합 |
-| emr_vendor | text | 유비케어/비트/이지케어텍 등 |
-| decision_makers | jsonb | [{name, role, style, contact_pref}] |
-| context_snapshot | jsonb | AI 추출 맥락 전체 |
-| stage_log | jsonb | [{stage, entered_at, exited_at, days}] |
-| prob_history | jsonb | [{date, from, to, trigger}] |
-| outcome | text | win / loss / active |
-| win_factors | text[] | 계약 성사 요인 |
-| loss_reason | text | 드랍 원인 |
-| days_in_stage | integer | 현재 단계 체류일 (자동계산) |
-| next_action | text | 다음 액션 |
-| due_date | timestamptz | 팔로업 기한 |
+MVP 범위:
+- 딜 CRUD (어느 단계에서든 시작 가능 — 발굴/제안/협상/확정/계약)
+- 미팅 메모 입력 (텍스트 직접 입력 + 음성 파일 업로드)
+- 음성 → Whisper STT → Claude 구조화 자동 파이프라인
+- AI 코치 ("이 딜 어떻게 이기나요?" 맞춤 전략)
+- 제안서 초안 생성 (텍스트/마크다운)
+- Win 공식 대시보드 (EMR사별·병원 규모별 Win률)
+- 단일 사용자 (Kes 본인, 이메일 로그인)
 
-**context_snapshot 구조:**
-```json
-{
-  "hidden_needs": [],
-  "pain_points": [],
-  "objections": [],
-  "win_signals": [],
-  "decision_maker_style": "",
-  "contact_preference": "",
-  "budget_sensitivity": "",
-  "decision_log": [{"date": "", "note": ""}]
-}
-```
-
-### meeting_logs
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | uuid PK | |
-| deal_id | uuid FK | |
-| user_id | uuid FK | |
-| input_type | text | text / audio |
-| raw_text | text | 원문 or Whisper 변환 결과 |
-| audio_path | text | Supabase Storage 경로 |
-| audio_duration | integer | 녹음 길이(초) |
-| ai_summary | text | Claude 요약 (2~3문장) |
-| extracted | jsonb | {hidden_needs[], objections[], signals[], next_actions[]} |
-
-### contact_logs
-| 컬럼 | 타입 | 설명 |
-|------|------|------|
-| id | uuid PK | |
-| deal_id | uuid FK | |
-| method | text | 전화/카카오/이메일/방문 |
-| initiated_by | text | sales / customer |
-| response_speed_hours | numeric | 고객 응답 소요 시간 |
-| sentiment | text | positive/neutral/negative/no_response |
-| contacted_at | timestamptz | |
-
-### win_patterns (VIEW)
-`deals` 테이블에서 자동 집계. `emr_vendor`, `hospital_size`, `services` 기준 Win률 + 평균 계약 소요일.
-
-### RLS 정책
-모든 테이블에 `user_id = auth.uid()` 조건 적용. Storage 버킷 경로: `{user_id}/{deal_id}/{timestamp}.{ext}`
-
----
-
-## API 엔드포인트
-
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | /api/deals | 딜 목록 (stage 필터, 정렬) |
-| POST | /api/deals | 딜 생성 |
-| GET | /api/deals/[id] | 딜 상세 (meeting_logs 포함) |
-| PATCH | /api/deals/[id] | 딜 수정 (단계 변경, 결과 기록) |
-| DELETE | /api/deals/[id] | 딜 삭제 |
-| POST | /api/analyze-memo | 텍스트 메모 → Claude 구조화 |
-| POST | /api/transcribe | 음성 → Whisper → 텍스트 → Claude |
-| POST | /api/coach | 딜 ID → AI 코치 (SSE 스트리밍) |
-| POST | /api/proposal | 딜 ID → 제안서 초안 |
-| GET | /api/win-patterns | Win 공식 집계 데이터 |
-| GET | /api/today-actions | 오늘 할 일 (AI 우선순위) |
-
-### POST /api/transcribe 처리 흐름
-1. FormData로 음성 파일 수신 (multipart/form-data)
-2. Supabase Storage 업로드: `audio-recordings/{user_id}/{deal_id}/{ts}.{ext}`
-3. Whisper API 호출 (`whisper-1`, language: ko)
-4. 변환 텍스트를 analyze-memo로 내부 전달
-5. meeting_logs 저장 + deals.context_snapshot 업데이트
-
-**지원 파일:** `.mp3`, `.mp4`, `.m4a`, `.wav`, `.webm`, `.ogg` / 최대 25MB
-
-### POST /api/coach 처리 흐름
-1. deal + meeting_logs + contact_logs 풀 조회
-2. win_patterns 뷰에서 동일 세그먼트(EMR, 규모) 통계 조회
-3. Claude API 호출 → SSE 스트리밍 응답
-
----
-
-## AI 프롬프트 설계 (`lib/ai/prompts.ts`)
-
-### MEMO_ANALYSIS_SYSTEM
-메모 → 구조화. JSON 형식만 응답:
-```json
-{
-  "summary": "2~3문장 핵심 요약",
-  "extracted": {
-    "hidden_needs": [],
-    "pain_points": [],
-    "objections": [],
-    "win_signals": [],
-    "next_actions": []
-  },
-  "context_patch": {
-    "contact_preference": "전화선호|카카오|이메일|방문선호",
-    "decision_maker_style": "데이터중시|관계중시|빠른결정|신중함",
-    "budget_sensitivity": "민감|보통|둔감"
-  }
-}
-```
-
-### COACH_SYSTEM
-마크다운 응답 구조:
-- `## 이 딜의 Win 가능성` — S/A/B/C 등급 + 근거
-- `## 지금 당장 해야 할 것` — 액션 3가지
-- `## 유사 Win 패턴` — 동일 EMR/규모 성공 전략
-- `## 주의할 것` — 위험 신호
-- `## 반론 대응` — 예상 반론과 대응
-
-### PROPOSAL_SYSTEM
-제안서 마크다운 구조:
-1. 현황 및 과제 (pain_points 기반)
-2. 제안 솔루션
-3. 기대 효과
-4. 도입 절차
-5. 레퍼런스 (동일 EMR/규모 사례)
-
----
-
-## 화면 구성
-
-### 홈 대시보드 (`/`)
-- 오늘 할 일 카드 (AI 우선순위 3가지, 기한 초과 빨간색)
-- 파이프라인 요약 (단계별 딜 수)
-- 위험 신호 목록 (7일 이상 체류 딜)
-- Win 공식 미리보기
-
-### 딜 목록 (`/deals`)
-- DealCard: 병원명, 서비스, 단계 배지, 확도, 체류일(D+n), 최근 메모 요약
-- 정렬: 확도순(S→C), 최근활동순 / 단계별 필터
-- 딜 생성 필드: 병원명*, 서비스*(다중), 현재단계*, 병원규모, EMR사, 담당자명/역할
-
-### 딜 상세 (`/deals/[id]`) — 4개 섹션
-- **섹션 A** 고객 프로파일 카드 (니즈/반론/신호 태그, 의사결정자 정보)
-- **섹션 B** 미팅 메모 입력 (텍스트 탭 + 음성 업로드 탭, 4단계 진행 상태)
-- **섹션 C** AI 코치 (스트리밍 응답, 유사 딜 케이스)
-- **섹션 D** 액션/문서 (단계 변경, Next Action + Due Date, Win/Loss 기록, 제안서 생성)
-
-### Win 공식 (`/win-formula`)
-- EMR별 Win률 바 차트 (Recharts)
-- 병원 규모별 평균 계약 소요일 + Win률 테이블
-- 최적 연락 패턴 (contact_logs 집계)
-- 반론 대응 라이브러리
-- 딜 10개 미만 시 "데이터 누적 중" 표시
-
----
-
-## 타입 정의 (`types/index.ts`)
-
-```typescript
-export type DealStage = 'discovery' | 'proposal' | 'negotiation' | 'confirmed' | 'contract';
-export type ProbGrade = 'S' | 'A' | 'B' | 'C';
-export type Outcome = 'win' | 'loss' | 'active';
-
-export interface ContextSnapshot {
-  hidden_needs: string[];
-  pain_points: string[];
-  objections: string[];
-  win_signals: string[];
-  decision_maker_style?: string;
-  contact_preference?: string;
-  budget_sensitivity?: string;
-  decision_log: Array<{ date: string; note: string }>;
-}
-
-export interface Deal {
-  id: string;
-  hospital_name: string;
-  services: string[];
-  stage: DealStage;
-  prob_grade?: ProbGrade;
-  hospital_size?: string;
-  emr_vendor?: string;
-  context_snapshot: ContextSnapshot;
-  outcome?: Outcome;
-  days_in_stage: number;
-  next_action?: string;
-  due_date?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface MeetingLog {
-  id: string;
-  deal_id: string;
-  input_type: 'text' | 'audio';
-  raw_text?: string;
-  audio_path?: string;
-  audio_duration?: number;
-  ai_summary?: string;
-  extracted: {
-    hidden_needs: string[];
-    pain_points: string[];
-    objections: string[];
-    win_signals: string[];
-    next_actions: string[];
-  };
-  created_at: string;
-}
-```
-
----
-
-## 구현 순서 (14일 계획)
-
-| Day | 모듈 | 구현 내용 | 완료 기준 |
-|-----|------|-----------|-----------|
-| 1~2 | supabase/migrations/001_init.sql | deals, meeting_logs, contact_logs 테이블 + RLS + Storage 버킷 | Supabase Studio 확인 |
-| 3 | app/(auth)/login | Supabase Auth 이메일 로그인 + 리디렉트 | 로그인 → 홈 동작 |
-| 4 | app/(dashboard)/deals | 딜 목록 + 생성 폼 + CRUD | 생성→목록→삭제 E2E |
-| 5 | lib/ai/claude.ts + analyze-memo | Claude API 래퍼 + 메모 구조화 API | 테스트 메모 → JSON 응답 |
-| 6 | components/memo/MemoInput | 텍스트 메모 입력 UI + API 연동 | 메모 → 분석 → 화면 표시 |
-| 7 | lib/ai/whisper.ts + transcribe | Whisper 래퍼 + Storage 업로드 | m4a → 텍스트 변환 확인 |
-| 8 | components/memo/AudioUpload | 드래그&드롭 UI + 4단계 진행 표시 | 음성 → 변환 → 분석 E2E |
-| 9 | app/api/coach | 딜 맥락 + win_patterns → SSE 스트리밍 | 코치 버튼 → 스트리밍 출력 |
-| 10 | components/ai/CoachPanel | 스트리밍 렌더링 + react-markdown | 코치 패널 UI 완성 |
-| 11 | app/api/proposal + 제안서 페이지 | 제안서 초안 생성 + 마크다운 렌더링 | 제안서 생성 → 표시 |
-| 12 | app/(dashboard)/win-formula | win_patterns 집계 + Recharts 차트 | EMR별 차트 표시 |
-| 13 | app/(dashboard)/page.tsx | 홈 대시보드 전체 섹션 | 할 일 + 위험 신호 표시 |
-| 14 | Vercel 배포 + E2E 테스트 | 환경 변수 등록 + 전체 플로우 검증 | HTTPS URL + E2E 통과 |
-
----
-
-## MVP 완료 체크리스트
-
-- [ ] Supabase 스키마 마이그레이션 + RLS 적용
-- [ ] 로그인 → 홈 리디렉트 동작
-- [ ] 딜 생성 → 목록 → 삭제 전체 흐름
-- [ ] 텍스트 메모 → Claude 분석 → 결과 표시
-- [ ] 음성(.m4a) → Whisper 변환 → Claude 분석 → 결과 표시
-- [ ] AI 코치 버튼 → 스트리밍 응답 출력
-- [ ] 제안서 초안 생성 → 마크다운 렌더링
-- [ ] 단계 변경 → stage_log 업데이트
-- [ ] Win/Loss 기록 → win_patterns 뷰 반영
-- [ ] Win 공식 화면 → EMR별 차트 표시
-- [ ] 홈 화면 → 오늘 할 일 + 위험 신호 딜
-- [ ] Vercel 배포 + HTTPS 접속 확인
-- [ ] E2E: 딜 생성 → 음성 메모 → AI 코치 → 제안서
-
----
-
-## MVP 제외 항목 (Phase 2)
-
+고도화 예정 기능 (Phase 2~):
 - 팀 멀티유저 (영업 6인 공유)
 - 견적서 PDF 자동 생성
 - 계약서 DOCX 자동 생성
 - 연락 이력 관리 + 최적 연락 패턴 분석
 - 팔로업 기한 이메일 알림 (Resend)
 - 회사 MIS (구글 시트) 자동 연동 브릿지
+
+주요 스택/연동 서비스:
+- Frontend: Next.js 14 (App Router) + TypeScript + Tailwind CSS
+- Database: Supabase (PostgreSQL + Storage + Auth + Edge Functions)
+- AI 텍스트: Anthropic Claude Sonnet 4.6 API
+- AI 음성→텍스트: OpenAI Whisper API (whisper-1, language: ko)
+- 배포: Vercel Pro
+- 이메일: Resend (Phase 2)
+
+대상: 본인 사용 (Kes 단독 검증 → 팀 확장)
+
+완료 기준:
+- 딜 생성 → 음성 메모 업로드 → AI 분석 → AI 코치 → 제안서 초안
+  전체 E2E 흐름이 Vercel 배포 URL에서 끊김 없이 동작
+- Win 공식 화면에서 EMR별 차트 표시 (테스트 데이터 기준)
+- 홈 화면에서 오늘 할 일 + 위험 신호 딜 표시
+```
+
+---
+
+## 3. 개발 원칙
+
+### 3-1. 문제 우선, 스택 후
+- 도구를 먼저 고르지 않는다. "이 문제의 본질이 무엇인가"를 먼저 정의한다.
+- 더 적합한 대안이 있으면 현재 요청 구현 후 반드시 "대안 제안" 섹션으로 별도 언급.
+
+### 3-2. MVP 기준
+- 핵심 흐름 1개만 동작하면 MVP. 부가 기능은 검증 후 추가.
+- 에러 핸들링은 MVP 단계에서 최소화. 단, 데이터 유실 가능 구간은 예외.
+- **외부 API 연동 전: 권한 / 잔액 / 타입 반드시 먼저 확인.**
+- GitHub Actions 사용 시 main 브랜치 기준으로 동작 확인.
+
+### 3-3. 고도화 기준
+MVP 검증 후 아래 조건 충족 시 고도화 진행:
+- 동일 흐름이 주 5회 이상 반복 실행되는가
+- 수동 개입이 주 2회 이상 발생하는가
+- 다른 사람에게도 같은 문제가 있는가 (납품·패키지화 가능성)
+
+---
+
+## 4. 네이밍 컨벤션
+
+### 프로젝트 / 파일명
+```
+[도메인]_[목적]_v[버전]
+예) sales_lead-notify_v1
+    health_report-gen_v2
+    biz_proposal-draft_v1
+```
+
+### 변수 / 환경변수 / DB 속성명
+- **반드시 영어로** (한글 키 사용 금지)
+- camelCase: `leadName`, `hospitalId`, `submittedAt`
+- Boolean: `is` / `has` 접두어: `isNew`, `hasPaid`
+- 날짜: ISO 8601: `2025-01-15T09:00:00+09:00`
+- 환경변수: UPPER_SNAKE_CASE: `ANTHROPIC_API_KEY`, `SUPABASE_URL`
+
+### 함수명
+```
+[동사][대상][목적] (camelCase)
+예) fetchLeadData, generateReport, syncToNotion
+```
+
+---
+
+## 5. 기술 스택 운영 원칙
+
+### Claude / GPT API
+- System Prompt는 별도 파일(`.md`) 또는 Supabase 테이블로 관리. 코드 인라인 하드코딩 금지.
+- 입력 데이터는 전처리 후 전달 (불필요 필드 제거 → 토큰 절감).
+- 출력은 JSON mode 또는 구분자(`###`) 기반으로 구조화.
+- AI 응답 실패 시 기본값 또는 사람 검토 큐로 분기 처리.
+
+### Supabase (기본 DB)
+- 테이블명: snake_case 복수형 (`leads`, `report_logs`)
+- 모든 테이블에 `id` (uuid), `created_at`, `updated_at` 기본 포함.
+- 민감 정보(API 키 등)는 `.env` 또는 Supabase Vault에 저장. 코드에 직접 작성 금지.
+- RLS(Row Level Security)는 외부 공개 서비스에만 적용. 내부 툴은 서비스 키 사용.
+
+### Google Sheets (경량 DB / 리포트)
+- 헤더 행은 반드시 1행 고정, 키 컬럼(ID류)은 A열.
+- 날짜 형식: `YYYY-MM-DD` (Sheets 자동 변환 방지).
+- 대량 처리 시 배치 쓰기 우선 (API 할당량 절약).
+
+### HTTP API 연동 공통
+- 인증 토큰은 환경변수로 관리. 하드코딩 절대 금지.
+- Rate Limit 구간: 요청 간 500ms 이상 확보.
+- 응답 코드 200/201 외 전부 에러 분기 처리.
+
+---
+
+## 6. 에러 핸들링
+
+```
+에러 발생
+  ├─ 복구 가능 (일시적 네트워크 등): 최대 3회 재시도 후 로그
+  ├─ 데이터 오류 (파싱 실패 등): Supabase error_logs 테이블 또는 Google Sheets 에러 탭에 기록
+  └─ 치명적 오류: 즉시 알림 (Slack 또는 이메일)
+```
+
+**에러 로그 필수 필드**: `timestamp` / `project_name` / `error_type` / `input_data` / `raw_error`
+
+---
+
+## 7. 테스트 & 검증
+
+1. **단위**: 함수·모듈 단위 독립 실행 확인
+2. **통합**: 실제 입력 → 최종 출력까지 1회 전체 실행
+3. **엣지 케이스**:
+   - 빈 값 / null 입력
+   - 중복 호출 (동일 데이터 2회 전송)
+   - API 타임아웃
+4. **배포 전 체크리스트**:
+   - [ ] 환경변수가 `.env`에 분리되어 있는가?
+   - [ ] `.env`가 `.gitignore`에 포함되어 있는가?
+   - [ ] 에러 알림 채널이 연결되어 있는가?
+   - [ ] GitHub Actions 사용 시 main 브랜치 기준으로 동작하는가?
+
+---
+
+## 8. 프로젝트 아카이빙
+
+모든 프로젝트 완료 후 **Notion → Kes's Projects > Project Archive DB**에 기록.
+**Notion DB ID**: `54ba50d2-3e03-4ef7-a3c4-2bc143659201`
+
+### 아카이빙 필수 항목 (순서 지킬 것)
+
+| # | 항목 | 작성 기준 |
+|---|------|----------|
+| 1 | **왜 시작했나** | 발견한 문제, 발생 맥락, 트리거 상황 |
+| 2 | **무엇을 만들었나** | 솔루션 한 줄 + 사용 스택 목록 |
+| 3 | **진행 과정** | 주요 의사결정 포인트와 선택 이유 |
+| 4 | **시행착오 인사이트** | 실패한 접근, 예상 외 동작, 다음엔 다르게 할 것 |
+| 5 | **콘텐츠 활용 가능성** | 블로그 / 뉴스레터 / 케이스스터디로 활용 가능한가 |
+
+### 수익화 가능성 평가 (납품·패키지화 검토 시)
+
+| 기준 | 체크 |
+|------|------|
+| 동일 문제를 가진 잠재 고객이 5곳 이상 있는가? | ☐ |
+| 솔루션 재사용률이 70% 이상인가? (커스텀 공수 최소) | ☐ |
+| 월 운영 비용이 수익 대비 20% 이하인가? | ☐ |
+| 고객이 직접 운영 가능한 수준인가? | ☐ |
+
+→ 3개 이상 체크 시: **패키지화 / 템플릿 상품 전환 검토**
+
+---
+
+## 9. Claude Code 응답 스타일
+
+- **언어**: 한국어. 기술 용어(함수명, API명, 라이브러리명)는 영어 원문 유지.
+- **설명 방식**: 이유 → 방법 순서. "왜 이렇게 하는가"를 먼저 설명.
+- **코드**: 반드시 코드블록 사용. 핵심 포인트는 주석으로 표시.
+- **불명확한 요구사항**: 추정으로 진행하지 말고 구현 전 반드시 질문.
+- **MVP vs 고도화**: 응답 시 두 가지를 명시적으로 분리해서 제시.
+- **대안 제안**: 더 나은 접근이 있으면 현재 요청 완료 후 별도 섹션으로 언급.
+
+---
+
+## 10. 레퍼런스
+
+| 항목 | 위치 |
+|------|------|
+| Claude API 문서 | https://docs.anthropic.com |
+| Supabase 문서 | https://supabase.com/docs |
+| 프로젝트 아카이브 | Notion > Kes's Projects > Project Archive DB |
+| 자산 폴더 | Google Drive > MAKE 프로젝트 |
+
+---
+
+*마지막 업데이트: 2026-03-31 | 버전: 2.0*
