@@ -36,7 +36,7 @@ export default async function DealDetailPage({ params }: { params: { id: string 
           <div>
             <h1 className="text-xl font-bold text-gray-900">{deal.hospital_name}</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {deal.services.join(', ')}
+              {(deal.services ?? []).join(', ')}
               {deal.emr_vendor && ` · ${deal.emr_vendor}`}
               {deal.hospital_size && ` · ${deal.hospital_size}`}
             </p>

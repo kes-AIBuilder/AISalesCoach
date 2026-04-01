@@ -22,7 +22,12 @@ export default async function DealsPage({ searchParams }: { searchParams: Search
     query = query.eq('stage', stageFilter)
   }
 
-  const { data: deals } = await query
+  const { data: deals, error: dbError } = await query
+
+  if (dbError) {
+    console.error('[deals/page] Supabase error:', dbError)
+    throw new Error(`DB 오류: ${dbError.message} (code: ${dbError.code})`)
+  }
 
   const dealList = (deals ?? []) as Deal[]
 

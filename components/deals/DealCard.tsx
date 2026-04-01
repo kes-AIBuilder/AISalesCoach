@@ -8,7 +8,8 @@ interface Props {
 
 export default function DealCard({ deal }: Props) {
   const isOverdue = deal.due_date && new Date(deal.due_date) < new Date()
-  const isStale = deal.days_in_stage >= 7
+  const isStale = (deal.days_in_stage ?? 0) >= 7
+  const services = deal.services ?? []
 
   return (
     <Link href={`/deals/${deal.id}`}>
@@ -16,7 +17,7 @@ export default function DealCard({ deal }: Props) {
         <div className="flex items-start justify-between mb-2">
           <div>
             <h3 className="font-semibold text-gray-900 text-sm">{deal.hospital_name}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{deal.services.join(', ') || '서비스 미지정'}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{services.join(', ') || '서비스 미지정'}</p>
           </div>
           {deal.prob_grade && (
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${PROB_GRADE_COLORS[deal.prob_grade]}`}>
