@@ -4,13 +4,11 @@ import DealCard from '@/components/deals/DealCard'
 import type { Deal, DealStage } from '@/types'
 import { STAGE_LABELS, STAGE_ORDER } from '@/types'
 
-interface SearchParams {
-  stage?: string
-}
-
-export default async function DealsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function DealsPage({ searchParams }: { searchParams: any }) {
   const supabase = createServerClient()
-  const stageFilter = searchParams.stage as DealStage | undefined
+  // Next.js 14.2+ 에서 searchParams가 Promise일 수 있으므로 await 처리
+  const sp = await Promise.resolve(searchParams)
+  const stageFilter = sp?.stage as DealStage | undefined
 
   let query = supabase
     .from('deals')

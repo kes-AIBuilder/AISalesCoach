@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import type { Deal } from '@/types'
 import { STAGE_LABELS, PROB_GRADE_COLORS } from '@/types'
