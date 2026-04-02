@@ -1,20 +1,22 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import DealCard from '@/components/deals/DealCard'
 import type { Deal, DealStage } from '@/types'
 import { STAGE_LABELS, STAGE_ORDER } from '@/types'
 
-export default function DealsClient() {
-  const searchParams = useSearchParams()
-  const stageFilter = searchParams.get('stage') as DealStage | null
+interface Props {
+  stageFilter: string | null
+}
+
+export default function DealsClient({ stageFilter }: Props) {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchDeals = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false
     setLoading(true)
     const supabase = createClient()
     let query = supabase
@@ -24,17 +26,17 @@ export default function DealsClient() {
       .order('updated_at', { ascending: false })
 
     if (stageFilter) {
-      query = query.eq('stage', stageFilter)
+      query = (query as any).eq('stage', stageFilter)
     }
 
-    const { data } = await query
-    setDeals((data ?? []) as Deal[])
-    setLoading(false)
+    query.then(({ data }) => {
+      if (!cancelled) {
+        setDeals((data ?? []) as Deal[])
+        setLoading(false)
+      }
+    })
+    return () => { cancelled = true }
   }, [stageFilter])
-
-  useEffect(() => {
-    fetchDeals()
-  }, [fetchDeals])
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -86,7 +88,7 @@ export default function DealsClient() {
         <div className="text-center py-16">
           <p className="text-4xl mb-3">💼</p>
           <p className="text-gray-500 text-sm">
-            {stageFilter ? `${STAGE_LABELS[stageFilter]} 단계의 딜이 없습니다` : '아직 딜이 없습니다'}
+            {stageFilter ? `${STAGE_LABELS[stageFilter as DealStage]} 단계의 딜이 없습니다` : '아직 딜이 없습니다'}
           </p>
           <Link
             href="/deals/new"
