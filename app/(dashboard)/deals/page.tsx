@@ -1,10 +1,12 @@
 import DealsClient from './DealsClient'
 
-export default function DealsPage({
+// Next.js 14.2.x+에서 searchParams가 Promise로 변경됨
+export default async function DealsPage({
   searchParams,
 }: {
-  searchParams: { stage?: string }
+  searchParams: Promise<{ stage?: string }> | { stage?: string }
 }) {
-  const stageFilter = searchParams?.stage ?? null
+  const sp = await searchParams
+  const stageFilter = sp?.stage ?? null
   return <DealsClient stageFilter={stageFilter} />
 }
